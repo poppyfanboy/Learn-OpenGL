@@ -4,7 +4,7 @@
 
 On linux (X11) you will need `xorg-dev` package installed.
 
-ALso ffmpeg libraries must be installed (`avcodec`, `avformat`, `avutil`, `swscale`). `PkgConfig` should figure out how to find them, but you also have an option to hint the paths explicitly like this: `-DLIBAV_INCLUDE=/path/to/headers -DLIBAV_LIB=/path/to/libs`.
+Also ffmpeg libraries must be installed (`avcodec`, `avformat`, `avutil`, `swscale`). `PkgConfig` should figure out how to find them, but you also have an option to hint the paths explicitly like this: `-DLIBAV_INCLUDE=/path/to/headers -DLIBAV_LIB=/path/to/libs`.
 
 ## Script
 

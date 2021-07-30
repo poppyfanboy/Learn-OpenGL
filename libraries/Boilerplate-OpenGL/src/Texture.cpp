@@ -27,7 +27,8 @@ Texture::Texture(std::shared_ptr<Window> window,
     , _filePath(filePath)
 {
     int channelsCount = 0;
-    unsigned char *data = stbi_load(filePath.c_str(), &_width, &_height, &channelsCount, 0);
+    unsigned char *data =
+        stbi_load(filePath.string().c_str(), &_width, &_height, &channelsCount, 0);
     if (data == nullptr)
     {
         throw std::runtime_error("Could not load the image " + filePath.string() + ".");
