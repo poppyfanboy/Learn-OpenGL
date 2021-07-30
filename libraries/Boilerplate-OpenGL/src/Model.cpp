@@ -68,7 +68,8 @@ Transform3D const &Model::transform() const
 void Model::loadModel(std::filesystem::path const &modelPath)
 {
     Assimp::Importer importer;
-    aiScene const *scene = importer.ReadFile(modelPath, aiProcess_Triangulate | aiProcess_FlipUVs);
+    aiScene const *scene =
+        importer.ReadFile(modelPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
 
     if (scene == nullptr || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) != 0U ||
         scene->mRootNode == nullptr)
@@ -233,8 +234,9 @@ Model::loadMaterialTextures(aiMaterial *material,
         auto textureIsAlreadyLoaded =
             std::find_if(_loadedTextures.begin(),
                          _loadedTextures.end(),
-                         [textureFilePath](std::shared_ptr<Texture> const &loadedTexture)
-                         { return loadedTexture->filePath() == textureFilePath; });
+                         [textureFilePath](std::shared_ptr<Texture> const &loadedTexture) {
+                             return loadedTexture->filePath() == textureFilePath;
+                         });
 
         if (textureIsAlreadyLoaded == _loadedTextures.end())
         {

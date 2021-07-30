@@ -3,7 +3,7 @@
 # * BUILD_TESTS =  ON / OFF
 # * LIBAV_INCLUDE and LIBAV_LIB for ffmpeg libraries to explicitly hint paths
 
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.16)
 project(Learn-OpenGL)
 
 set(temp_directory ${PROJECT_SOURCE_DIR}/temp)
