@@ -1,0 +1,27 @@
+[submodule "vendor/assimp"]
+	path = vendor/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule "vendor/fmt"]
+	path = vendor/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "vendor/gcem"]
+	path = vendor/gcem
+	url = https://github.com/kthohr/gcem
+[submodule "vendor/glfw"]
+	path = vendor/glfw
+	url = https://github.com/glfw/glfw
+[submodule "vendor/glm"]
+	path = vendor/glm
+	url = https://github.com/g-truc/glm
+[submodule "vendor/googletest"]
+	path = vendor/googletest
+	url = https://github.com/google/googletest
+[submodule "vendor/gsl"]
+	path = vendor/gsl
+	url = https://github.com/microsoft/GSL
+[submodule "vendor/sparsepp"]
+	path = vendor/sparsepp
+	url = https://github.com/greg7mdp/sparsepp
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = https://github.com/nothings/stb
