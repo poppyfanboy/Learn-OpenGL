@@ -36,7 +36,7 @@ std::filesystem::path const
 
 std::filesystem::path const OUTPUT_FILE_PATH("projects/Fragment-Shader-Rendering/out/video.webm");
 
-pf::gl::types::Size const WINDOW_WIDTH = 1080, WINDOW_HEIGHT = 1080;
+pf::gl::types::Size const WINDOW_WIDTH = 64, WINDOW_HEIGHT = 64;
 pf::gl::types::Size const FRAME_BUFFER_WIDTH = 1080, FRAME_BUFFER_HEIGHT = 1080;
 pf::gl::types::Size const FPS = 60;
 pf::gl::types::Size const CRF = 30;
@@ -131,10 +131,9 @@ int main(int /*argc*/, const char ** /*argv*/)
     auto lastUpdateTime = std::chrono::high_resolution_clock::now();
     auto const appStartTime = lastUpdateTime;
 
-    std::shared_ptr<pf::util::VideoEncoder> videoEncoder =
-        pf::util::VideoEncoder::getCrfVideoEncoder(
-            OUTPUT_FILE_PATH, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, FPS, CRF);
-    videoEncoder->startEncoding();
+    std::shared_ptr<pf::util::VideoEncoder> videoEncoder = pf::util::VideoEncoder::crf(
+        OUTPUT_FILE_PATH, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, FPS, CRF);
+    videoEncoder->start();
 
     pf::gl::Shader shader(window, VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
     shader.use();
@@ -174,7 +173,7 @@ int main(int /*argc*/, const char ** /*argv*/)
 
         glReadPixels(
             0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
-        videoEncoder->addFrameFromRGB(buffer);
+        videoEncoder->appendFrameFromRGB(buffer);
 
         frameIndex++;
         if (frameIndex == static_cast<pf::gl::types::Size>(LOOP_DURATION * FPS))
@@ -189,7 +188,7 @@ int main(int /*argc*/, const char ** /*argv*/)
     // * Clean up *
 
     glDeleteFramebuffers(1, &frameBuffer);
-    videoEncoder->finishEncoding();
+    videoEncoder->finish();
 
     return 0;
 }

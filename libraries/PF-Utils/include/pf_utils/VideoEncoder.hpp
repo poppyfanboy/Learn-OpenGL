@@ -1,9 +1,5 @@
-/**
- * A wrapper for ffmpeg functions used to write video to disk from a sequence of raw RGB data.
- */
-
-#ifndef VIDEO_ENCODER_H
-#define VIDEO_ENCODER_H
+#ifndef VIDEO_ENCODER_HPP
+#define VIDEO_ENCODER_HPP
 
 extern "C"
 {
@@ -25,51 +21,91 @@ extern "C"
 namespace pf::util
 {
 
+/**
+ * A wrapper class for ffmpeg functions used to write video to disk from a sequence of raw RGB data.
+ */
 class VideoEncoder
 {
 public:
-    static std::shared_ptr<VideoEncoder> getConstantBitrateVideoEncoder(std::filesystem::path path,
-                                                                        size_t width,
-                                                                        size_t height,
-                                                                        size_t fps,
-                                                                        uint64_t bitrate);
-
-    static std::shared_ptr<VideoEncoder> getCrfVideoEncoder(std::filesystem::path path,
-                                                            size_t width,
-                                                            size_t height,
-                                                            size_t fps,
-                                                            size_t crf);
-    /**
-     * @brief The resulting GIF will have 256 colors.
-     */
     static std::shared_ptr<VideoEncoder>
-    getLowQualityGifEncoder(std::filesystem::path path, size_t width, size_t height, size_t fps);
+    cbr(std::filesystem::path path, size_t width, size_t height, size_t fps, uint64_t bitrate);
 
-    // A dummy video encoder, not intended to be used
+    static std::shared_ptr<VideoEncoder>
+    crf(std::filesystem::path path, size_t width, size_t height, size_t fps, size_t crf);
+
+    static std::shared_ptr<VideoEncoder>
+    gif(std::filesystem::path path, size_t width, size_t height, size_t fps);
+
+    /**
+     * Creates a dummy video encoder.
+     */
     VideoEncoder();
 
     VideoEncoder(VideoEncoder const &) = delete;
-    VideoEncoder(VideoEncoder &&) = delete;
+    VideoEncoder(VideoEncoder &&) = default;
 
     virtual ~VideoEncoder();
 
-    void startEncoding();
-    void addFrameFromRGB(std::vector<uint8_t> const &rgbData);
-    void finishEncoding();
-    bool encodingStarted() const;
-    bool encodingEnded() const;
-    size_t getFramesCount() const;
-
-    VideoEncoder &operator=(VideoEncoder &&) = delete;
     VideoEncoder &operator=(VideoEncoder const &) = delete;
+    VideoEncoder &operator=(VideoEncoder &&) = default;
+
+    [[nodiscard]] bool started() const;
+    [[nodiscard]] bool finished() const;
+    [[nodiscard]] size_t framesCount() const;
+
+    void start();
+    void appendFrameFromRGB(std::vector<uint8_t> const &rgbData);
+    void finish();
 
 private:
-    using EncodingParametersSetter =
-        std::function<void(std::shared_ptr<AVCodecContext> encodingContext,
-                           AVStream *outputStream)>;
+    template <typename T>
+    using UniquePointer = std::unique_ptr<T, void (*)(T *)>;
 
+    using EncodingParametersSetter =
+        std::function<void(AVCodecContext &encoderContext, AVStream &outputStream)>;
+
+    struct Output
+    {
+        UniquePointer<AVFormatContext *> context =
+            UniquePointer<AVFormatContext *>(nullptr, nullptr);
+        AVStream *stream = nullptr;
+        AVOutputFormat *format = nullptr;
+
+        static AVOutputFormat *guessFormat(std::filesystem::path const &filePath);
+    };
+
+    struct Encoder
+    {
+        UniquePointer<AVCodecContext> context = UniquePointer<AVCodecContext>(nullptr, nullptr);
+        AVCodec *codec = nullptr;
+    };
+
+    struct Image
+    {
+        UniquePointer<uint8_t *> data = UniquePointer<uint8_t *>(nullptr, nullptr);
+        std::array<int, 4> lineSize = {};
+    };
+
+    struct RGB
+    {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+    };
+
+    static std::string const DEFAULT_OUTPUT_FILE_NAME;
     static std::string const DEFAULT_CODEC_NAME;
     static std::string const DEFAULT_OUTPUT_FILE_EXTENSION;
+
+    static std::filesystem::path fixOutputFilePath(std::filesystem::path const &originalPath);
+    static void yFlippedImageCopy(RGB *destination, RGB const *source, size_t width, size_t height);
+
+    static void linewiseImageCopy(uint8_t *destination,
+                                  size_t destinationLineSize,
+                                  uint8_t const *source,
+                                  size_t sourceLineSize,
+                                  size_t width,
+                                  size_t height);
 
     VideoEncoder(std::filesystem::path path,
                  size_t width,
@@ -77,36 +113,29 @@ private:
                  size_t fps,
                  uint64_t bitrate);
 
-    void _encodeFrame(std::shared_ptr<AVCodecContext> encoderContext,
-                      std::shared_ptr<AVFrame> frame);
+    void encodeFrame(AVCodecContext &encoderContext, AVFrame &frame);
 
-    bool _encodingStarted = false;
-    bool _encodingEnded = false;
+    bool _started = false, _finished = false;
     size_t _frameIndex = 0;
     std::filesystem::path _filePath;
     size_t _width, _height;
     size_t _fps;
     uint64_t _bitrate;
 
-    // two buffers used to convert pixels from RGB into YCbCr color space
-    std::unique_ptr<uint8_t *, std::function<void(uint8_t **)>> _sourceData;
-    std::array<int, 4> _sourceLineSize = {};
-    std::unique_ptr<uint8_t *, std::function<void(uint8_t **)>> _destinationData;
-    std::array<int, 4> _destinationLineSize = {};
+    Output _output;
+    Encoder _encoder;
+    UniquePointer<SwsContext> _swsContext;
+    Image _source, _destination;
+    UniquePointer<AVFrame> _frame;
 
-    std::shared_ptr<SwsContext> _swsContext;
-    std::shared_ptr<AVFrame> _frame;
-    std::shared_ptr<AVCodecContext> _encoderContext;
-    std::shared_ptr<AVFormatContext *> _outputContext;
-    // AVCodecContext manages streams that belong to it, no need to delete them manually
-    AVStream *_outputStream = nullptr;
-
-    AVCodec *_codec = nullptr;
-    AVOutputFormat *_outputFormat = nullptr;
-
-    EncodingParametersSetter _parametersSetter = [](std::shared_ptr<AVCodecContext>, AVStream *) {};
+    /**
+     * This function is called somewhere inside the `start` method, it can be used to inject
+     * additional parameters of the encoder / output stream.
+     */
+    EncodingParametersSetter _parametersSetter = [](AVCodecContext & /*encoderContext*/,
+                                                    AVStream & /*stream*/) {};
 };
 
 } // namespace pf::util
 
-#endif // !VIDEO_ENCODER_H
+#endif // !VIDEO_ENCODER_HPP

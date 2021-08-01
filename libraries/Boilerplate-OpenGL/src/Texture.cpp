@@ -11,6 +11,7 @@
 
 #include <pf_gl/Window.hpp>
 #include <pf_gl/ValueTypes.hpp>
+#include <pf_utils/Math.hpp>
 
 namespace pf::gl
 {
@@ -18,6 +19,7 @@ namespace pf::gl
 Texture::Texture(std::shared_ptr<Window> window,
                  std::filesystem::path const &filePath,
                  TextureType textureType,
+                 bool flipVertically,
                  types::Int wrapS,
                  types::Int wrapT,
                  types::Int minFilter,
@@ -26,6 +28,8 @@ Texture::Texture(std::shared_ptr<Window> window,
     , _textureType(textureType)
     , _filePath(filePath)
 {
+    stbi_set_flip_vertically_on_load(flipVertically ? 1 : 0);
+
     int channelsCount = 0;
     unsigned char *data =
         stbi_load(filePath.string().c_str(), &_width, &_height, &channelsCount, 0);
@@ -57,6 +61,10 @@ Texture::Texture(std::shared_ptr<Window> window,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
+    if (!pf::util::math::isPoT(_width) || !util::math::isPoT(_height))
+    {
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    }
 
     glTexImage2D(GL_TEXTURE_2D, 0, format, _width, _height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);

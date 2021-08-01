@@ -31,6 +31,7 @@ public:
     Texture(std::shared_ptr<Window> window,
             std::filesystem::path const &,
             TextureType textureType,
+            bool flipVertically = false,
             types::Int wrapS = GL_CLAMP_TO_EDGE,
             types::Int wrapT = GL_CLAMP_TO_EDGE,
             types::Int minFilter = GL_LINEAR_MIPMAP_LINEAR,

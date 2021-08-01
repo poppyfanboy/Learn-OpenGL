@@ -15,10 +15,10 @@ if(DEFINED LIBAV_INCLUDE
     find_library(SWSCALE_LIB swscale REQUIDED HINTS ${LIBAV_LIB})
 
     setup_library(
-        PF-Utils "${AVFORMAT_LIB};${SWSCALE_LIB};${AVUTIL_LIB};${AVCODEC_LIB};fmt" "gcem;glm" ""
-        "${AVCODEC_INCLUDE};${AVFORMAT_INCLUDE};${AVUTIL_INCLUDE};${SWSCALE_INCLUDE}")
+        PF-Utils "fmt;GSL" "${AVFORMAT_LIB};${SWSCALE_LIB};${AVUTIL_LIB};${AVCODEC_LIB};gcem;glm"
+        "" "${AVCODEC_INCLUDE};${AVFORMAT_INCLUDE};${AVUTIL_INCLUDE};${SWSCALE_INCLUDE}")
 else()
     setup_library(
-        PF-Utils "PkgConfig::AVFORMAT;PkgConfig::SWSCALE;PkgConfig::AVUTIL;PkgConfig::AVCODEC;fmt"
-        "gcem;glm")
+        PF-Utils "fmt;GSL"
+        "PkgConfig::AVFORMAT;PkgConfig::SWSCALE;PkgConfig::AVUTIL;PkgConfig::AVCODEC;gcem;glm")
 endif()

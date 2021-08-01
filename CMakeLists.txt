@@ -1,6 +1,6 @@
 # Options:
 #
-# * BUILD_TESTS =  ON / OFF
+# * BUILD_TESTS = ON / OFF
 # * LIBAV_INCLUDE and LIBAV_LIB for ffmpeg libraries to explicitly hint paths
 
 cmake_minimum_required(VERSION 3.16)
