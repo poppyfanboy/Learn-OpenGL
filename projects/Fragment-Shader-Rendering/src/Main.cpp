@@ -131,7 +131,7 @@ int main(int /*argc*/, const char ** /*argv*/)
     auto lastUpdateTime = std::chrono::high_resolution_clock::now();
     auto const appStartTime = lastUpdateTime;
 
-    std::shared_ptr<pf::util::VideoEncoder> videoEncoder = pf::util::VideoEncoder::crf(
+    auto videoEncoder = pf::util::VideoEncoder::crf(
         OUTPUT_FILE_PATH, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, FPS, CRF);
     videoEncoder->start();
 
@@ -177,6 +177,10 @@ int main(int /*argc*/, const char ** /*argv*/)
 
         frameIndex++;
         if (frameIndex == static_cast<pf::gl::types::Size>(LOOP_DURATION * FPS))
+        {
+            break;
+        }
+        if (frameIndex == 30)
         {
             break;
         }
