@@ -23,6 +23,7 @@ Checks: |
     -performance-no-int-to-ptr,
     -cppcoreguidelines-special-member-functions,
     -readability-convert-member-functions-to-static,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
 CheckOptions:
     - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
       value: 1

@@ -21,6 +21,9 @@
 namespace pf::gl
 {
 
+pf::util::IndexedString Mesh::DIFFUSE_UNIFORM_NAME = "u_textureDiffuse???";   // NOLINT
+pf::util::IndexedString Mesh::SPECULAR_UNIFORM_NAME = "u_textureSpecular???"; // NOLINT
+
 Mesh::Mesh(std::shared_ptr<Window> window,
            std::vector<SimpleVertex> const &vertices,
            std::vector<GLuint> const &indices,
@@ -92,22 +95,23 @@ void Mesh::activateTextures(Shader &shader) const
 {
     size_t diffuseTextureIndex = 0;
     size_t specularTextureIndex = 0;
+
     for (types::Int i = 0; i < _textures.size(); i++)
     {
         glActiveTexture(GL_TEXTURE0 + i);
         _textures[i]->bind();
 
-        std::string uniformName;
+        char const *uniformName = nullptr;
         switch (_textures[i]->type())
         {
         case TextureType::DIFFUSE:
-            uniformName = "u_textureDiffuse" + std::to_string(diffuseTextureIndex++);
+            uniformName = DIFFUSE_UNIFORM_NAME.withIndex(diffuseTextureIndex++);
             break;
         case TextureType::SPECULAR:
-            uniformName = "u_textureSpecular" + std::to_string(specularTextureIndex++);
+            uniformName = SPECULAR_UNIFORM_NAME.withIndex(specularTextureIndex++);
             break;
         }
-        if (!uniformName.empty())
+        if (uniformName != nullptr)
         {
             shader.setUniformValue(uniformName, i);
         }

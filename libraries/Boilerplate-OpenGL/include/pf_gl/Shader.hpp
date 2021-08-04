@@ -1,7 +1,6 @@
 #ifndef SHADER_HPP
 #define SHADER_HPP
 
-#include <string>
 #include <memory>
 #include <filesystem>
 
@@ -46,44 +45,44 @@ public:
     void unbind() const;
 
     template <typename T>
-    void setUniformValue(std::string const &name, T value);
+    void setUniformValue(char const *name, T value);
 
 private:
     types::UInt _id;
     std::shared_ptr<Window> _window;
 
-    GLint getUniformLocation(std::string const &name);
+    GLint getUniformLocation(char const *name);
 };
 
 
 // * Templates definitions *
 
 template <typename T>
-void Shader::setUniformValue(std::string const & /*name*/, T /*value*/)
+void Shader::setUniformValue(char const * /*name*/, T /*value*/)
 {
     throw std::logic_error("This uniform type is not supported.");
 }
 
 template <>
-void Shader::setUniformValue<types::Float>(std::string const &name, types::Float value);
+void Shader::setUniformValue<types::Float>(char const *name, types::Float value);
 
 template <>
-void Shader::setUniformValue<types::FVec3>(std::string const &name, types::FVec3 value);
+void Shader::setUniformValue<types::FVec3>(char const *name, types::FVec3 value);
 
 template <>
-void Shader::setUniformValue<types::FVec2>(std::string const &name, types::FVec2 value);
+void Shader::setUniformValue<types::FVec2>(char const *name, types::FVec2 value);
 
 template <>
-void Shader::setUniformValue<types::FMat4>(std::string const &name, types::FMat4 value);
+void Shader::setUniformValue<types::FMat4>(char const *name, types::FMat4 value);
 
 template <>
-void Shader::setUniformValue<types::IntVec2>(std::string const &name, types::IntVec2 value);
+void Shader::setUniformValue<types::IntVec2>(char const *name, types::IntVec2 value);
 
 template <>
-void Shader::setUniformValue<types::Int>(std::string const &name, types::Int value);
+void Shader::setUniformValue<types::Int>(char const *name, types::Int value);
 
 template <>
-void Shader::setUniformValue<types::Bool>(std::string const &name, types::Bool value);
+void Shader::setUniformValue<types::Bool>(char const *name, types::Bool value);
 
 } // namespace pf::gl
 

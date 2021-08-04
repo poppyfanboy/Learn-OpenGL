@@ -27,6 +27,7 @@
 #include <pf_gl/Model.hpp>
 #include <pf_gl/RenderingOptions.hpp>
 #include <pf_gl/ValueTypes.hpp>
+#include <pf_utils/IndexedString.hpp>
 
 pf::gl::types::Size const WINDOW_WIDTH = 1600;
 pf::gl::types::Size const WINDOW_HEIGHT = 900;
@@ -202,6 +203,13 @@ int main(int /*argc*/, const char ** /*argv*/)
         glm::vec3(0.0F, 0.0F, -3.0F),
     };
 
+    std::array<pf::util::IndexedString, 4> pointLightsUniformNames = {
+        pf::util::IndexedString("u_pointLights[0].????????????????"),
+        pf::util::IndexedString("u_pointLights[1].????????????????"),
+        pf::util::IndexedString("u_pointLights[2].????????????????"),
+        pf::util::IndexedString("u_pointLights[3].????????????????"),
+    };
+
 
     std::vector<std::unique_ptr<pf::gl::Model>> barrelsModels;
     for (auto const &position : barrelsPositions)
@@ -292,18 +300,21 @@ int main(int /*argc*/, const char ** /*argv*/)
 
         for (size_t i = 0; i < pointLightsPositions.size(); i++)
         {
-            std::string uniformStructName = "u_pointLights[" + std::to_string(i) + "]";
             lightingShader.setUniformValue(
-                uniformStructName + ".position",
+                pointLightsUniformNames.at(i).withIndex("position"),
                 glm::vec3(view * glm::vec4(pointLightsPositions.at(i), 1.0F)));
-            lightingShader.setUniformValue(uniformStructName + ".ambient",
+            lightingShader.setUniformValue(pointLightsUniformNames.at(i).withIndex("ambient"),
                                            glm::vec3(0.05F, 0.05F, 0.05F));
-            lightingShader.setUniformValue(uniformStructName + ".diffuse", pointLightsColors.at(i));
-            lightingShader.setUniformValue(uniformStructName + ".specular",
+            lightingShader.setUniformValue(pointLightsUniformNames.at(i).withIndex("diffuse"),
+                                           pointLightsColors.at(i));
+            lightingShader.setUniformValue(pointLightsUniformNames.at(i).withIndex("specular"),
                                            glm::vec3(1.0F, 1.0F, 1.0F));
-            lightingShader.setUniformValue(uniformStructName + ".constantFactor", 1.0F);
-            lightingShader.setUniformValue(uniformStructName + ".linearFactor", 0.09F);
-            lightingShader.setUniformValue(uniformStructName + ".quadraticFactor", 0.032F);
+            lightingShader.setUniformValue(
+                pointLightsUniformNames.at(i).withIndex("constantFactor"), 1.0F);
+            lightingShader.setUniformValue(pointLightsUniformNames.at(i).withIndex("linearFactor"),
+                                           0.09F);
+            lightingShader.setUniformValue(
+                pointLightsUniformNames.at(i).withIndex("quadraticFactor"), 0.032F);
         }
 
         lightingShader.setUniformValue("u_spotLight.position", glm::vec3(0.0F));

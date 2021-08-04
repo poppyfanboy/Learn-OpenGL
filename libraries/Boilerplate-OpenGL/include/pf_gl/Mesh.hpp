@@ -16,6 +16,7 @@
 #include <pf_gl/Window.hpp>
 #include <pf_gl/ValueTypes.hpp>
 #include <pf_utils/RawBuffer.hpp>
+#include <pf_utils/IndexedString.hpp>
 
 namespace pf::gl
 {
@@ -58,6 +59,9 @@ public:
     void render(Shader &shader) const;
 
 private:
+    static pf::util::IndexedString DIFFUSE_UNIFORM_NAME;
+    static pf::util::IndexedString SPECULAR_UNIFORM_NAME;
+
     std::shared_ptr<Window> _window;
     std::vector<std::shared_ptr<Texture>> _textures;
     std::shared_ptr<VertexArray> _vertexArray;
