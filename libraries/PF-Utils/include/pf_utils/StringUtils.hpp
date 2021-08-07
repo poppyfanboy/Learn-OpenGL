@@ -1,15 +1,18 @@
-/**
- * Utility functions for working with strings.
- */
-
 #ifndef STRING_UTILS_HPP
 #define STRING_UTILS_HPP
 
 #include <string>
-#include <vector>
+#include <span>
 
 namespace pf::util::string
 {
+
+static std::string const ALPHANUMERIC_CHARACTERS_STRING =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+std::span<char const> const ALPHANUMERIC_CHARACTERS =
+    std::span<char const>(ALPHANUMERIC_CHARACTERS_STRING.begin(),
+                          ALPHANUMERIC_CHARACTERS_STRING.end());
 
 /**
  * Adds filler characters at the end of the passed string so that it would be `resultStringSize`
@@ -33,10 +36,10 @@ std::string padLeftWithZeros(size_t number, size_t desiredStringSize);
 
 /**
  * Generates a random string of length `size` consiting of the characters from the `characters`
- * vector.
+ * span.
  */
 template <typename RNG>
-std::string random(size_t size, RNG &rng, std::vector<char> const &characters);
+std::string random(size_t size, RNG &rng, std::span<char const> const &characters);
 
 /**
  * Generates a random alphanumeric string of size `size`.

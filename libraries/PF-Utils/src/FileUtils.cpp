@@ -1,3 +1,4 @@
+#include <bits/ranges_algo.h>
 #include <pf_utils/FileUtils.hpp>
 
 #include <fstream>
@@ -11,11 +12,13 @@
 #include <cstddef>
 #include <optional>
 #include <limits>
+#include <ranges>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <pf_utils/StringUtils.hpp>
 #include <pf_utils/Math.hpp>
+#include <pf_utils/RangeAlgorithms.hpp>
 
 namespace pf::util::file
 {
@@ -50,6 +53,10 @@ uniquePathWithNumericSuffix(std::filesystem::path const &existingFilePath,
  */
 std::filesystem::path stripNumericSuffix(std::filesystem::path const &path);
 
+std::filesystem::path appendSuffix(std::filesystem::path const &path, std::string const &suffix);
+
+std::filesystem::path appendSuffix(std::filesystem::path const &path, size_t suffix);
+
 std::optional<std::filesystem::path>
 uniquePathSequential(std::filesystem::path const &existingFilePath,
                      size_t moduloNumber,
@@ -67,42 +74,33 @@ uniquePathSequential(std::filesystem::path const &existingFilePath,
     // If a filename has a numeric suffix, remove it to avoid layering suffixes on one another
     std::filesystem::path suffixStrippedFilePath = stripNumericSuffix(existingFilePath);
 
-    if (moduloNumber != 0)
+    size_t numericSuffixSize = pf::util::math::digitsCount(moduloNumber - 1);
+    for (size_t suffix = 0; suffix < moduloNumber; suffix++)
     {
-        size_t suffixSize = pf::util::math::digitsCount(moduloNumber - 1);
-        auto numericSuffixTrialResult =
-            uniquePathWithNumericSuffix(suffixStrippedFilePath, suffixSize, moduloNumber, 0);
+        auto newFilePath = appendSuffix(
+            suffixStrippedFilePath, pf::util::string::padLeftWithZeros(suffix, numericSuffixSize));
 
-        if (numericSuffixTrialResult.has_value())
+        if (!std::filesystem::exists(newFilePath))
         {
-            return numericSuffixTrialResult;
+            return newFilePath;
         }
     }
 
-    if (alphanumericSuffixTrials != 0)
+    size_t alphanumericSuffixSize = moduloNumber > 1 ? pf::util::math::digitsCount(moduloNumber - 1)
+                                                     : ALPHANUMERIC_SUFFIX_DEFAULT_SIZE;
+    for (size_t suffixIndex = 0; suffixIndex < alphanumericSuffixTrials; suffixIndex++)
     {
-        size_t suffixSize = moduloNumber > 1 ? pf::util::math::digitsCount(moduloNumber - 1)
-                                             : ALPHANUMERIC_SUFFIX_DEFAULT_SIZE;
-        auto alphanumericSuffixTrialResult = uniquePathWithAlphanumericSuffix(
-            suffixStrippedFilePath, suffixSize, alphanumericSuffixTrials);
+        auto newFilePath = appendSuffix(
+            existingFilePath, pf::util::string::randomAlphanumeric(alphanumericSuffixSize));
 
-        if (alphanumericSuffixTrialResult.has_value())
+        if (!std::filesystem::exists(newFilePath))
         {
-            return alphanumericSuffixTrialResult;
+            return newFilePath;
         }
     }
 
     return std::nullopt;
 }
-
-std::filesystem::path appendSuffix(std::filesystem::path const &path, std::string const &suffix);
-
-std::filesystem::path appendSuffix(std::filesystem::path const &path, size_t suffix);
-
-std::optional<size_t> uniqueSuffixExponentialSearch(std::filesystem::path const &path);
-
-std::optional<size_t>
-uniqueSuffixBinarySearch(std::filesystem::path const &originalPath, size_t low, size_t high);
 
 std::optional<std::filesystem::path> uniquePath(std::filesystem::path const &existingFilePath)
 {
@@ -115,24 +113,16 @@ std::optional<std::filesystem::path> uniquePath(std::filesystem::path const &exi
         return existingFilePath;
     }
 
-    auto maxSuffixSearchResult = uniqueSuffixExponentialSearch(existingFilePath);
-    if (!maxSuffixSearchResult.has_value())
+    auto uniqueSuffix = pf::util::exponentialSearch(
+        std::ranges::views::iota(static_cast<size_t>(0), MAX_NUMERIC_SUFFIX),
+        [](auto &&path) { return std::filesystem::exists(path); },
+        [existingFilePath](size_t suffix) { return appendSuffix(existingFilePath, suffix); });
+
+    if (*uniqueSuffix == MAX_NUMERIC_SUFFIX)
     {
-        // Fallback to sequential search
         return uniquePathSequential(existingFilePath);
     }
-    size_t maxSuffix = maxSuffixSearchResult.value();
-
-    auto minSuffixSearchResult = uniqueSuffixBinarySearch(existingFilePath, 0, maxSuffix);
-    if (!minSuffixSearchResult.has_value())
-    {
-        assert(!std::filesystem::exists(appendSuffix(existingFilePath, maxSuffix)));
-
-        // Just use the suffix found with exponential search in case binary search fails
-        return appendSuffix(existingFilePath, maxSuffix);
-    }
-
-    return appendSuffix(existingFilePath, minSuffixSearchResult.value());
+    return appendSuffix(existingFilePath, *uniqueSuffix);
 }
 
 std::string readAsText(std::filesystem::path const &path)
@@ -144,8 +134,8 @@ std::string readAsText(std::filesystem::path const &path)
     {
         fileStream.open(path, std::ifstream::in | std::ifstream::binary);
 
-        fileStream.ignore(std::numeric_limits<std::streamsize>::max());
-        std::streamsize fileSize = fileStream.gcount();
+        fileStream.seekg(0, std::ios::end);
+        std::streamsize fileSize = fileStream.tellg();
         fileStream.clear();
         fileStream.seekg(0, std::fstream::beg);
 
@@ -193,117 +183,6 @@ std::filesystem::path stripNumericSuffix(std::filesystem::path const &path)
     }
 
     return suffixStrippedPath;
-}
-
-std::optional<std::filesystem::path>
-uniquePathWithAlphanumericSuffix(std::filesystem::path const &existingFilePath,
-                                 size_t suffixSize,
-                                 size_t trialsCount)
-{
-    assert(!existingFilePath.empty() && existingFilePath.has_filename());
-    assert(std::filesystem::exists(existingFilePath));
-    assert(suffixSize >= 1);
-
-    for (size_t trialIndex = 0; trialIndex < trialsCount; trialIndex++)
-    {
-        auto newFilePath =
-            appendSuffix(existingFilePath, pf::util::string::randomAlphanumeric(suffixSize));
-
-        if (!std::filesystem::exists(newFilePath))
-        {
-            return newFilePath;
-        }
-    }
-
-    return std::nullopt;
-}
-
-std::optional<std::filesystem::path>
-uniquePathWithNumericSuffix(std::filesystem::path const &existingFilePath,
-                            size_t suffixSize,
-                            size_t moduloNumber,
-                            size_t startingNumber)
-{
-    assert(!existingFilePath.empty() && existingFilePath.has_filename());
-    assert(std::filesystem::exists(existingFilePath));
-    assert(moduloNumber != 0);
-    assert(startingNumber < moduloNumber);
-    assert(suffixSize >= 1);
-
-    std::string fileName = existingFilePath.stem().string();
-    size_t currentNumber = startingNumber;
-    while (true)
-    {
-        auto newFilePath = appendSuffix(
-            existingFilePath, pf::util::string::padLeftWithZeros(currentNumber, suffixSize));
-
-        if (!std::filesystem::exists(newFilePath))
-        {
-            return newFilePath;
-        }
-        if (currentNumber == (startingNumber + moduloNumber - 1) % moduloNumber)
-        {
-            return std::nullopt;
-        }
-
-        currentNumber = (currentNumber + 1) % moduloNumber;
-    }
-
-    return std::nullopt;
-}
-
-std::optional<size_t> uniqueSuffixExponentialSearch(std::filesystem::path const &path)
-{
-    assert(!path.empty() && path.has_filename());
-    assert(std::filesystem::exists(path));
-
-    // Find the largest suffix which have not been used yet
-    size_t suffix = 0;
-    while (true)
-    {
-        if (!std::filesystem::exists(appendSuffix(path, suffix)))
-        {
-            return suffix;
-        }
-        // Next iteration is going to overflow the suffix variable
-        if (suffix > (MAX_NUMERIC_SUFFIX - 1) / 2)
-        {
-            if (!std::filesystem::exists(appendSuffix(path, MAX_NUMERIC_SUFFIX)))
-            {
-                return MAX_NUMERIC_SUFFIX;
-            }
-            return std::nullopt;
-        }
-        suffix = 2 * suffix + 1;
-    }
-
-    return std::nullopt;
-}
-
-std::optional<size_t>
-uniqueSuffixBinarySearch(std::filesystem::path const &path, size_t low, size_t high)
-{
-    assert(low < std::numeric_limits<size_t>::max() / 2);
-    assert(high < std::numeric_limits<size_t>::max() / 2);
-
-    while (low < high)
-    {
-        size_t middle = (low + high) / 2;
-        auto suffixedPath = appendSuffix(path, middle);
-        if (std::filesystem::exists(suffixedPath))
-        {
-            low = middle + 1;
-        }
-        else
-        {
-            high = middle;
-        }
-    }
-    if (std::filesystem::exists(appendSuffix(path, low)))
-    {
-        return std::nullopt;
-    }
-    return low;
 }
 
 } // namespace pf::util::file

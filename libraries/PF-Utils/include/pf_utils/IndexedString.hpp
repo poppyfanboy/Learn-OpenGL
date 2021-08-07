@@ -8,6 +8,14 @@
 namespace pf::util
 {
 
+/**
+ * Given a string template (like `array[???]`) generates C-strings with filler characters replaced
+ * by numbers or strings (`?` in this case). Returned C-string will only be valid until next call of
+ * functions `withIndex`, `withPaddedIndex`. Memory is allocated only once, when the `IndexedString`
+ * constructor is called.
+ *
+ * Virtually useless, just like me.
+ */
 class IndexedString final
 {
 public:
@@ -29,8 +37,18 @@ public:
     [[nodiscard]] bool indexFits(std::string_view const &index) const;
 
     void filler(char filler);
+
+    /**
+     * In case there is more space than enough, unused space is truncated (`array[???]` with index
+     * `25` becomes `array[25]`).
+     */
     char const *withIndex(size_t index);
     char const *withIndex(std::string_view const &index);
+
+    /**
+     * In case there is more space than enough, unused space is filled with `fillerChar`
+     * (`array[???]` with index `25` becomes `array[025]`).
+     */
     char const *withPaddedIndex(size_t index);
     char const *withPaddedIndex(std::string_view const &index);
 

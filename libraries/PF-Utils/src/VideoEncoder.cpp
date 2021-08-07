@@ -53,6 +53,7 @@ VideoEncoder::VideoEncoder()
 {
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 VideoEncoder::~VideoEncoder()
 {
     if (started() && !finished())
@@ -80,8 +81,10 @@ void VideoEncoder::start()
 
     // * Create images to convert between color spaces and create SWS context *
 
+    // user input
     _rgbImage = Image(_output.width, _output.height, AV_PIX_FMT_RGB24, 1);
 
+    // what goes into the frame
     _convertedImage = Image(_output.width,
                             _output.height,
                             static_cast<AVPixelFormat>(_output.stream->codecpar->format),
@@ -101,7 +104,7 @@ void VideoEncoder::start()
                                   [](SwsContext *swsContext) { sws_freeContext(swsContext); });
     if (_swsContext == nullptr)
     {
-        throw std::runtime_error("Failed to create the scale context.");
+        throw std::runtime_error("Failed to create a SWS context.");
     }
 
     _started = true;
@@ -129,11 +132,6 @@ void VideoEncoder::appendFrameFromRGB(std::span<uint8_t> const &sourceRGB)
                       _rgbImage.width,
                       _rgbImage.height);
 
-    int makeWritableResponse = av_frame_make_writable(_encoder.frame.get());
-    if (makeWritableResponse < 0)
-    {
-        throw std::runtime_error("Frame is not writable.");
-    }
     sws_scale(_swsContext.get(),
               _rgbImage.data.get(),
               _rgbImage.lineSize.data(),
@@ -142,34 +140,8 @@ void VideoEncoder::appendFrameFromRGB(std::span<uint8_t> const &sourceRGB)
               _convertedImage.data.get(),
               _convertedImage.lineSize.data());
 
-    linewiseImageCopy(_encoder.frame->data[0],
-                      _encoder.frame->linesize[0],
-                      _convertedImage.data.get()[0],
-                      _convertedImage.lineSize[0],
-                      _convertedImage.width,
-                      _convertedImage.height);
-
-    if (_output.stream->codecpar->format == AV_PIX_FMT_YUV420P)
-    {
-        linewiseImageCopy(_encoder.frame->data[1],
-                          _encoder.frame->linesize[1],
-                          _convertedImage.data.get()[1],
-                          _convertedImage.lineSize[1],
-                          _convertedImage.width / 2,
-                          _convertedImage.height / 2);
-
-        linewiseImageCopy(_encoder.frame->data[2],
-                          _encoder.frame->linesize[2],
-                          _convertedImage.data.get()[2],
-                          _convertedImage.lineSize[2],
-                          _convertedImage.width / 2,
-                          _convertedImage.height / 2);
-    }
-
-    _encoder.frame->pts = gsl::narrow_cast<int64_t>(_frameIndex) * _output.stream->time_base.den /
-                          (_output.stream->time_base.num * gsl::narrow_cast<int64_t>(_output.fps));
-    encodeFrame(*_encoder.context, *_encoder.frame);
-    _frameIndex++;
+    _encoder.copyToFrame(_convertedImage);
+    _encoder.encodeFrame(_output);
 }
 
 void VideoEncoder::finish()
@@ -179,27 +151,9 @@ void VideoEncoder::finish()
         throw std::runtime_error(
             "Either the encoding has already ended or it has not started yet.");
     }
-    _finished = true;
-
-    AVPacket packet = {nullptr};
-    av_init_packet(&packet);
-
-    // encode delayed frames
-    while (true)
-    {
-        avcodec_send_frame(_encoder.context.get(), nullptr);
-        if (avcodec_receive_packet(_encoder.context.get(), &packet) == 0)
-        {
-            av_interleaved_write_frame(*_output.context, &packet);
-            av_packet_unref(&packet);
-        }
-        else
-        {
-            break;
-        }
-    }
-
+    _encoder.flush(_output);
     _output.close();
+    _finished = true;
 }
 
 bool VideoEncoder::started() const
@@ -214,26 +168,7 @@ bool VideoEncoder::finished() const
 
 size_t VideoEncoder::framesCount() const
 {
-    return _frameIndex;
-}
-
-void VideoEncoder::encodeFrame(AVCodecContext &encoderContext, AVFrame &frame)
-{
-    int sendFrameResponse = avcodec_send_frame(&encoderContext, &frame);
-    if (sendFrameResponse < 0)
-    {
-        throw std::runtime_error("Error while sending a frame for encoding.");
-    }
-
-    AVPacket packet = {nullptr};
-    av_init_packet(&packet);
-    packet.flags |= AV_PKT_FLAG_KEY;
-
-    if (avcodec_receive_packet(&encoderContext, &packet) == 0)
-    {
-        av_interleaved_write_frame(*_output.context, &packet);
-        av_packet_unref(&packet);
-    }
+    return _encoder.frameIndex;
 }
 
 std::unique_ptr<VideoEncoder> VideoEncoder::cbr(std::filesystem::path path,
@@ -267,9 +202,8 @@ VideoEncoder::gif(std::filesystem::path path, size_t width, size_t height, size_
 {
     path.replace_extension(".gif");
     auto videoEncoder = cbr(std::move(path), width, height, fps, 0);
-    videoEncoder->_parametersSetter = [](AVCodecContext & /*encoderContext*/, AVStream &stream) {
-        stream.codecpar->format = AV_PIX_FMT_RGB8;
-    };
+    videoEncoder->_parametersSetter = [](AVCodecContext & /*encoderContext*/, AVStream &stream)
+    { stream.codecpar->format = AV_PIX_FMT_RGB8; };
     return videoEncoder;
 }
 
@@ -334,7 +268,8 @@ void VideoEncoder::Output::createContext()
     assert(format != nullptr);
 
     context = UniquePointer<AVFormatContext *>(new AVFormatContext *,
-                                               [](AVFormatContext **outputContext) {
+                                               [](AVFormatContext **outputContext)
+                                               {
                                                    avformat_free_context(*outputContext);
                                                    delete outputContext;
                                                });
@@ -382,6 +317,7 @@ void VideoEncoder::Output::createStream(Encoder &encoder,
     avcodec_parameters_from_context(stream->codecpar, encoder.context.get());
 }
 
+// NOLINTNEXTLINE(readability-make-member-function-const)
 void VideoEncoder::Output::writeHeader()
 {
     assert(format != nullptr);
@@ -410,6 +346,7 @@ void VideoEncoder::Output::writeHeader()
     av_dump_format(*context, 0, filePath.string().c_str(), 1);
 }
 
+// NOLINTNEXTLINE(readability-make-member-function-const)
 void VideoEncoder::Output::close()
 {
     av_write_trailer(*context);
@@ -444,15 +381,23 @@ VideoEncoder::Encoder::Encoder(Output &output)
         }
     }
 
-    context = UniquePointer<AVCodecContext>(
-        avcodec_alloc_context3(codec),
-        [](AVCodecContext *encoderContext) { avcodec_free_context(&encoderContext); });
+    context = UniquePointer<AVCodecContext>(avcodec_alloc_context3(codec),
+                                            [](AVCodecContext *encoderContext)
+                                            { avcodec_free_context(&encoderContext); });
     if (context == nullptr)
     {
-        throw std::runtime_error("Failed to allocate encoder context");
+        throw std::runtime_error("Failed to allocate encoder context.");
+    }
+
+    packet = UniquePointer<AVPacket>(av_packet_alloc(),
+                                     [](AVPacket *packet) { av_packet_free(&packet); });
+    if (packet == nullptr)
+    {
+        throw std::runtime_error("Failed to allocate a packet.");
     }
 }
 
+// NOLINTNEXTLINE(readability-make-member-function-const)
 void VideoEncoder::Encoder::openCodec()
 {
     assert(context != nullptr);
@@ -491,6 +436,85 @@ void VideoEncoder::Encoder::createFrame()
     }
 }
 
+// NOLINTNEXTLINE(readability-make-member-function-const)
+void VideoEncoder::Encoder::copyToFrame(Image &sourceImage)
+{
+    int makeWritableResponse = av_frame_make_writable(frame.get());
+    if (makeWritableResponse < 0)
+    {
+        throw std::runtime_error("Frame is not writable.");
+    }
+
+    linewiseImageCopy(frame->data[0],
+                      frame->linesize[0],
+                      sourceImage.data.get()[0],
+                      sourceImage.lineSize[0],
+                      sourceImage.width,
+                      sourceImage.height);
+
+    if (context->pix_fmt == AV_PIX_FMT_YUV420P)
+    {
+        linewiseImageCopy(frame->data[1],
+                          frame->linesize[1],
+                          sourceImage.data.get()[1],
+                          sourceImage.lineSize[1],
+                          sourceImage.width / 2,
+                          sourceImage.height / 2);
+
+        linewiseImageCopy(frame->data[2],
+                          frame->linesize[2],
+                          sourceImage.data.get()[2],
+                          sourceImage.lineSize[2],
+                          sourceImage.width / 2,
+                          sourceImage.height / 2);
+    }
+}
+
+// NOLINTNEXTLINE(readability-make-member-function-const)
+void VideoEncoder::Encoder::flushPackets(Output &output)
+{
+    int receivePacketResponse = 0;
+    while (receivePacketResponse >= 0)
+    {
+        receivePacketResponse = avcodec_receive_packet(context.get(), packet.get());
+        if (receivePacketResponse == AVERROR(EAGAIN) || receivePacketResponse == AVERROR_EOF)
+        {
+            return;
+        }
+        if (receivePacketResponse < 0)
+        {
+            throw std::runtime_error("Error during encoding.");
+        }
+        av_interleaved_write_frame(*output.context.get(), packet.get());
+        av_packet_unref(packet.get());
+    }
+}
+
+void VideoEncoder::Encoder::flush(Output &output)
+{
+    int flushResponse = avcodec_send_frame(context.get(), nullptr);
+    if (flushResponse < 0)
+    {
+        throw std::runtime_error("Error while sending a frame for encoding.");
+    }
+    flushPackets(output);
+}
+
+void VideoEncoder::Encoder::encodeFrame(Output &output)
+{
+    frame->pts = gsl::narrow_cast<int64_t>(frameIndex) * output.stream->time_base.den /
+                 (output.stream->time_base.num * gsl::narrow_cast<int64_t>(output.fps));
+
+    int sendFrameResponse = avcodec_send_frame(context.get(), frame.get());
+    if (sendFrameResponse < 0)
+    {
+        throw std::runtime_error("Error while sending a frame for encoding.");
+    }
+
+    flushPackets(output);
+    frameIndex++;
+}
+
 
 // * Image *
 
@@ -506,16 +530,18 @@ VideoEncoder::Image::Image(size_t width, size_t height, AVPixelFormat pixelForma
     , height(height)
     , pixelFormat(pixelFormat)
 {
-    data = UniquePointer<uint8_t *>(new uint8_t *[4], [](uint8_t **data) {
-        av_freep(&data[0]);
-        delete[] data;
-    });
+    data = UniquePointer<uint8_t *>(new uint8_t *[4],
+                                    [](uint8_t **data)
+                                    {
+                                        av_freep(&data[0]);
+                                        delete[] data;
+                                    });
     int imageAllocResponse = av_image_alloc(data.get(),
                                             lineSize.data(),
                                             gsl::narrow_cast<int>(width),
                                             gsl::narrow_cast<int>(height),
                                             pixelFormat,
-                                            align);
+                                            gsl::narrow_cast<int>(align));
     if (imageAllocResponse < 0)
     {
         throw std::runtime_error("Could not allocate an image");

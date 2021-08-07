@@ -67,6 +67,7 @@ private:
         std::function<void(AVCodecContext &encoderContext, AVStream &outputStream)>;
 
     struct Encoder;
+    struct Image;
 
     struct Output
     {
@@ -99,12 +100,20 @@ private:
         UniquePointer<AVCodecContext> context = UniquePointer<AVCodecContext>(nullptr, nullptr);
         AVCodec *codec = nullptr;
         UniquePointer<AVFrame> frame = UniquePointer<AVFrame>(nullptr, nullptr);
+        UniquePointer<AVPacket> packet = UniquePointer<AVPacket>(nullptr, nullptr);
+        size_t frameIndex = 0;
 
         Encoder() = default;
         explicit Encoder(Output &output);
 
         void openCodec();
         void createFrame();
+        void copyToFrame(Image &source);
+
+        // Do not call this method alone, you probably want to call `flush` instead
+        void flushPackets(Output &output);
+        void encodeFrame(Output &output);
+        void flush(Output &output);
     };
 
     struct Image
@@ -146,10 +155,7 @@ private:
                  size_t fps,
                  uint64_t bitrate);
 
-    void encodeFrame(AVCodecContext &encoderContext, AVFrame &frame);
-
     bool _started = false, _finished = false;
-    size_t _frameIndex = 0;
 
     Output _output;
     Encoder _encoder;

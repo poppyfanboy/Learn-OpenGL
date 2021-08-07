@@ -19,6 +19,79 @@ std::uniform_int_distribution<UnsignedInt> unsignedIntsRandomRange(0, 10000);
 size_t const RANDOM_TESTS_TRIALS_COUNT = 10;
 
 
+// * digitsCountIterative for signed ints *
+
+// NOLINTNEXTLINE
+TEST(Math_DigitsCountIterativeSignedInt, GivenRandomNumber_ReturnsCorrectValue)
+{
+    std::random_device randomDevice;
+    std::mt19937 rng(randomDevice());
+
+    for (size_t trial = 0; trial < RANDOM_TESTS_TRIALS_COUNT; trial++)
+    {
+        SignedInt number = signedIntsRandomRange(rng);
+        size_t actualDigitsCount = std::to_string(number).size() - (number < 0 ? 1 : 0);
+
+        size_t digitsCount = pf::util::math::digitsCountIterative(number);
+
+        EXPECT_EQ(digitsCount, actualDigitsCount);
+    }
+}
+
+// NOLINTNEXTLINE
+TEST(Math_DigitsCountIterativeSignedInt, GivenMaxNumber_ReturnsCorrectValue)
+{
+    SignedInt number = std::numeric_limits<SignedInt>::max();
+    size_t actualDigitsCount = std::to_string(number).size();
+
+    size_t digitsCount = pf::util::math::digitsCountIterative(number);
+
+    EXPECT_EQ(digitsCount, actualDigitsCount);
+}
+
+// NOLINTNEXTLINE
+TEST(Math_DigitsCountIterativeSignedInt, GivenMinNumber_ReturnsCorrectValue)
+{
+    SignedInt number = std::numeric_limits<SignedInt>::min();
+    size_t actualDigitsCount = std::to_string(number).size() - (number < 0 ? 1 : 0);
+
+    size_t digitsCount = pf::util::math::digitsCountIterative(number);
+
+    EXPECT_EQ(digitsCount, actualDigitsCount);
+}
+
+
+// * digitsCountIterative for unsigned ints *
+
+// NOLINTNEXTLINE
+TEST(Math_DigitsCountIterativeUnsignedInt, GivenRandomNumber_ReturnsCorrectValue)
+{
+    std::random_device randomDevice;
+    std::mt19937 rng(randomDevice());
+
+    for (size_t trial = 0; trial < RANDOM_TESTS_TRIALS_COUNT; trial++)
+    {
+        UnsignedInt number = unsignedIntsRandomRange(rng);
+        size_t actualDigitsCount = std::to_string(number).size() - (number < 0 ? 1 : 0);
+
+        size_t digitsCount = pf::util::math::digitsCountIterative(number);
+
+        EXPECT_EQ(digitsCount, actualDigitsCount);
+    }
+}
+
+// NOLINTNEXTLINE
+TEST(Math_DigitsCountIterativeUnsignedInt, GivenMaxNumber_ReturnsCorrectValue)
+{
+    UnsignedInt number = std::numeric_limits<UnsignedInt>::max();
+    size_t actualDigitsCount = std::to_string(number).size();
+
+    size_t digitsCount = pf::util::math::digitsCountIterative(number);
+
+    EXPECT_EQ(digitsCount, actualDigitsCount);
+}
+
+
 // * digitsCount for signed ints *
 
 // NOLINTNEXTLINE

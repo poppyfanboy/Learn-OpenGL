@@ -28,7 +28,7 @@ std::string pf::util::string::padLeftWithZeros(size_t number, size_t desiredStri
 }
 
 template <typename RNG>
-std::string pf::util::string::random(size_t size, RNG &rng, std::vector<char> const &characters)
+std::string pf::util::string::random(size_t size, RNG &rng, std::span<char const> const &characters)
 {
     if (size == 0)
     {
@@ -41,7 +41,7 @@ std::string pf::util::string::random(size_t size, RNG &rng, std::vector<char> co
     std::uniform_int_distribution<size_t> charsDistribution(0, characters.size() - 1);
     for (size_t i = 0; i < size; i++)
     {
-        resultString.push_back(characters.at(charsDistribution(rng)));
+        resultString.push_back(characters[charsDistribution(rng)]);
     }
 
     return resultString;
@@ -55,24 +55,13 @@ std::string pf::util::string::randomAlphanumeric(size_t size, RNG &rng)
         return "";
     }
 
-    std::vector<char> characters;
-    // [a-zA-Z0-9] characters
-    characters.reserve(('z' - 'a' + 1) * 2 + 10);
-    for (char c = 'a'; c <= 'z'; c++)
-    {
-        characters.push_back(c);
-        characters.push_back(static_cast<char>(std::toupper(c)));
-    }
-    for (char c = '0'; c <= '9'; c++)
-    {
-        characters.push_back(c);
-    }
-    return random<RNG>(size, rng, characters);
+    return random<RNG>(size, rng, pf::util::string::ALPHANUMERIC_CHARACTERS);
 }
 
 std::string pf::util::string::randomAlphanumeric(size_t size)
 {
     std::random_device randomDevice;
-    std::mt19937 rng(randomDevice());
+    std::seed_seq seedSequence{randomDevice(), randomDevice(), randomDevice(), randomDevice()};
+    std::mt19937 rng(seedSequence);
     return randomAlphanumeric(size, rng);
 }

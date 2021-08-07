@@ -180,10 +180,6 @@ int main(int /*argc*/, const char ** /*argv*/)
         {
             break;
         }
-        if (frameIndex == 30)
-        {
-            break;
-        }
 
         window->swapBuffers();
     }

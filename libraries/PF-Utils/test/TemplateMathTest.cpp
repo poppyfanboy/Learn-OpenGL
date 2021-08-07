@@ -15,7 +15,7 @@ TEST(TemplateMath_Length, Vector2Argument_ReturnsCorrectLength)
     glm::vec2 vector{1.0F, 2.0F};
 
     float referenceLength = std::sqrt(vector.x * vector.x + vector.y * vector.y);
-    auto actualLength = pf::util::tmath::length<float, glm::vec2>(vector);
+    auto actualLength = pf::util::tmath::length<glm::vec2>(vector);
 
     EXPECT_NEAR(referenceLength, actualLength, ABSOLUTE_ERROR);
 }
@@ -28,7 +28,7 @@ TEST(TemplateMath_Length, Vector3Argument_ReturnsCorrectLength)
     float referenceLength =
         std::sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
 
-    auto actualLength = pf::util::tmath::length<float, glm::vec3>(vector);
+    auto actualLength = pf::util::tmath::length<glm::vec3>(vector);
     EXPECT_NEAR(referenceLength, actualLength, ABSOLUTE_ERROR);
 }
 
@@ -40,7 +40,7 @@ TEST(TemplateMath_Length, Vector4Argument_ReturnsCorrectLength)
     float referenceLength = std::sqrt(vector.x * vector.x + vector.y * vector.y +
                                       vector.z * vector.z + vector.w * vector.w);
 
-    auto actualLength = pf::util::tmath::length<float, glm::vec4>(vector);
+    auto actualLength = pf::util::tmath::length<glm::vec4>(vector);
     EXPECT_NEAR(referenceLength, actualLength, ABSOLUTE_ERROR);
 }
 

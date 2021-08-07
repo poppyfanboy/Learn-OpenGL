@@ -24,6 +24,9 @@ Checks: |
     -cppcoreguidelines-special-member-functions,
     -readability-convert-member-functions-to-static,
     -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-bounds-constant-array-index,
+    -google-explicit-constructor,
+    -cppcoreguidelines-owning-memory,
 CheckOptions:
     - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
       value: 1
