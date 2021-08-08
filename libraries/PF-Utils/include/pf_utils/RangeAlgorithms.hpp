@@ -68,6 +68,11 @@ exponentialSearch(Iterator first, Sentinel last, Predicate predicate, Projection
         {
             right = std::next(first, std::numeric_limits<IteratorDifference>::max() - 1);
         }
+
+        if (left >= right)
+        {
+            break;
+        }
     }
     return last;
 }
