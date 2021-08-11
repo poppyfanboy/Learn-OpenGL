@@ -40,6 +40,11 @@ exponentialSearch(Iterator first, Sentinel last, Predicate predicate, Projection
     using IteratorDifference = std::iter_difference_t<Iterator>;
     using Subrange = std::ranges::subrange<Iterator, Sentinel>;
 
+    if (first == last)
+    {
+        return last;
+    }
+
     auto step = IteratorDifference(2);
     auto left = first;
     auto right = first;
@@ -49,8 +54,7 @@ exponentialSearch(Iterator first, Sentinel last, Predicate predicate, Projection
         auto distanceToSentinel = std::ranges::distance(right, last);
         if (distanceToSentinel <= 0)
         {
-            return std::ranges::partition_point(
-                Subrange(left, last), predicate, projection);
+            return std::ranges::partition_point(Subrange(left, last), predicate, projection);
         }
         if (!std::invoke(predicate, std::invoke(projection, *right)))
         {
@@ -59,21 +63,28 @@ exponentialSearch(Iterator first, Sentinel last, Predicate predicate, Projection
         }
 
         left = std::next(right);
-        if (step <= std::numeric_limits<IteratorDifference>::max() / 2)
-        {
-            std::advance(right, step);
-            step *= 2;
-        }
-        else
-        {
-            right = std::next(first, std::numeric_limits<IteratorDifference>::max() - 1);
-        }
 
+        // account for right iterator overflow
+        // `distanceToSentinel - 1` so that the predicate would have a chance to be tested
+        std::advance(right, std::min(step, distanceToSentinel - 1));
+
+        // in case predicate(right = last - 1) fails, left will become `right + 1`
         if (left >= right)
         {
             break;
         }
+
+        // account for step overflow
+        if (step > std::numeric_limits<IteratorDifference>::max() / 2)
+        {
+            step = std::numeric_limits<IteratorDifference>::max();
+        }
+        else
+        {
+            step *= 2;
+        }
     }
+
     return last;
 }
 
