@@ -24,6 +24,7 @@
 #include <pf_gl/Texture.hpp>
 #include <pf_gl/RenderingOptions.hpp>
 #include <pf_utils/VideoEncoder.hpp>
+#include <pf_gl/DrawingContext3D.hpp>
 
 std::filesystem::path const
     TEXTURE_PATH("projects/Fragment-Shader-Rendering/res/textures/texture.bmp");
@@ -90,6 +91,10 @@ int main(int /*argc*/, const char ** /*argv*/)
     glGenFramebuffers(1, &frameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 
+    pf::gl::DrawingContext3D drawingContext{
+        .viewportSize = glm::ivec2(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT),
+    };
+
 
     // * Image texture setup *
 
@@ -136,7 +141,7 @@ int main(int /*argc*/, const char ** /*argv*/)
     videoEncoder->start();
 
     pf::gl::Shader shader(window, VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
-    shader.use();
+    shader.setUniformValue("u_loopDuration", LOOP_DURATION);
 
 
     // * Main loop *
@@ -148,8 +153,7 @@ int main(int /*argc*/, const char ** /*argv*/)
         pf::gl::types::Float secondsSinceStart =
             std::chrono::duration<float>(currentTime - appStartTime).count();
 
-        pf::gl::types::Float inVideoSecondsSinceStart =
-            static_cast<pf::gl::types::Float>(frameIndex) / FPS;
+        drawingContext.elapsedTimeSeconds = static_cast<pf::gl::types::Float>(frameIndex) / FPS;
 
         pf::gl::types::Float deltaSeconds =
             std::chrono::duration<float>(currentTime - lastUpdateTime).count();
@@ -165,11 +169,7 @@ int main(int /*argc*/, const char ** /*argv*/)
         glClearColor(1.0F, 0.0F, 0.0F, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        shader.use();
-        shader.setUniformValue("u_time", inVideoSecondsSinceStart);
-        shader.setUniformValue("u_resolution", glm::vec2(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT));
-        shader.setUniformValue("u_loopDuration", LOOP_DURATION);
-        rectangleMesh.render(shader);
+        rectangleMesh.render(shader, drawingContext);
 
         glReadPixels(
             0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());

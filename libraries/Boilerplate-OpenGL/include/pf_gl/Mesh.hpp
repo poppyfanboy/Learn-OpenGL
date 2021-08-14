@@ -17,6 +17,8 @@
 #include <pf_gl/ValueTypes.hpp>
 #include <pf_utils/RawBuffer.hpp>
 #include <pf_utils/IndexedString.hpp>
+#include <pf_gl/DrawingContext3D.hpp>
+#include <pf_gl/Material.hpp>
 
 namespace pf::gl
 {
@@ -54,19 +56,19 @@ public:
          std::vector<std::shared_ptr<Texture>> textures,
          UsagePattern usagePattern);
 
-    void render(Shader &shader, MinecraftCamera const &camera, Transform3D const &transform) const;
+    void render(Shader &shader,
+                DrawingContext3D const &drawingContext,
+                Transform3D const &transform,
+                Material const &material = {}) const;
 
-    void render(Shader &shader) const;
+    void render(Shader &shader,
+                DrawingContext3D const &drawingContext,
+                Material const &material = {}) const;
 
 private:
-    static pf::util::IndexedString DIFFUSE_UNIFORM_NAME;
-    static pf::util::IndexedString SPECULAR_UNIFORM_NAME;
-
     std::shared_ptr<Window> _window;
     std::vector<std::shared_ptr<Texture>> _textures;
     std::shared_ptr<VertexArray> _vertexArray;
-
-    void activateTextures(Shader &shader) const;
 };
 
 } // namespace pf::gl

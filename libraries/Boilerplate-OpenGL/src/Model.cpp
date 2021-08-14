@@ -24,33 +24,39 @@
 #include <pf_gl/Window.hpp>
 #include <pf_gl/Transform3D.hpp>
 #include <pf_gl/ValueTypes.hpp>
+#include <pf_gl/DrawingContext3D.hpp>
+#include <pf_gl/Material.hpp>
 
 namespace pf::gl
 {
 
 Model::Model(std::shared_ptr<Window> window,
              std::filesystem::path const &path,
-             std::unique_ptr<Transform3D> &&transform)
+             std::unique_ptr<Transform3D> &&transform,
+             Material const &material)
     : _window(std::move(window))
     , _transform(std::move(transform))
+    , _material(material)
 {
     loadModel(path);
 }
 
 Model::Model(std::shared_ptr<Window> window,
              std::vector<std::shared_ptr<Mesh>> meshes,
-             std::unique_ptr<Transform3D> &&transform)
+             std::unique_ptr<Transform3D> &&transform,
+             Material const &material)
     : _window(std::move(window))
     , _transform(std::move(transform))
     , _meshes(std::move(meshes))
+    , _material(material)
 {
 }
 
-void Model::render(Shader &shader, MinecraftCamera const &camera) const
+void Model::render(Shader &shader, DrawingContext3D const &drawingContext) const
 {
     for (auto const &mesh : _meshes)
     {
-        mesh->render(shader, camera, *_transform);
+        mesh->render(shader, drawingContext, *_transform, _material);
     }
 }
 
@@ -234,9 +240,8 @@ Model::loadMaterialTextures(aiMaterial *material,
         auto textureIsAlreadyLoaded =
             std::find_if(_loadedTextures.begin(),
                          _loadedTextures.end(),
-                         [textureFilePath](std::shared_ptr<Texture> const &loadedTexture) {
-                             return loadedTexture->filePath() == textureFilePath;
-                         });
+                         [textureFilePath](std::shared_ptr<Texture> const &loadedTexture)
+                         { return loadedTexture->filePath() == textureFilePath; });
 
         if (textureIsAlreadyLoaded == _loadedTextures.end())
         {

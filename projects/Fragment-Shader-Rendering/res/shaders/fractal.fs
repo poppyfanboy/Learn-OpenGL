@@ -8,7 +8,8 @@ out vec4 FragColor;
 uniform float u_time;
 uniform float u_loopDuration;
 uniform vec2 u_resolution;
-uniform sampler2D u_textureDiffuse0;
+#define DIFFUSE_TEXTURES_COUNT 1
+uniform sampler2D u_diffuseTexture[DIFFUSE_TEXTURES_COUNT];
 
 void mirrorOverLine(inout vec2 coords, float lineDirectionAngle, vec2 lineOriginCoords)
 {
@@ -124,7 +125,7 @@ void main()
     color.r += 0.07 * coords.x;
 
     FragColor = vec4(mix(color,
-                         vec3(texture(u_textureDiffuse0, color.gb + 0.1 * sin(timeLooped))),
+                         vec3(texture(u_diffuseTexture[0], color.gb + 0.1 * sin(timeLooped))),
                          1 - (sin(4 * timeLooped) + 1.0) / 4.0),
                      1.0);
 }

@@ -71,6 +71,8 @@ std::unique_ptr<Transform3D> EulerTransform3D::Builder::build()
     return std::make_unique<EulerTransform3D>(_shift, types::DEFAULT_VALUE<types::FMat3>, _scale);
 }
 
+EulerTransform3D const EulerTransform3D::IDENTITY = EulerTransform3D();
+
 EulerTransform3D::EulerTransform3D()
     : _shift(types::DEFAULT_VALUE<types::FVec3>)
     , _rotationMatrix(types::DEFAULT_VALUE<types::FMat3>)

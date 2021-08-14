@@ -47,6 +47,8 @@ public:
         types::FMat3 _rotationMatrix = types::ERROR_VALUE<types::FMat3>;
     };
 
+    static EulerTransform3D const IDENTITY;
+
     /**
      * Creates an identity transform.
      */

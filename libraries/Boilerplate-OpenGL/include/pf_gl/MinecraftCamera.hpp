@@ -38,14 +38,14 @@ public:
         types::Float _fov = std::numbers::pi / 4.0F;
     };
 
-    explicit MinecraftCamera(types::Float aspectRatio,
-                             types::FVec3 const &position,
-                             types::Float yaw,
-                             types::Float pitch,
-                             types::Float nearClippingDistance,
-                             types::Float farClippingDistance,
-                             types::Float rotationSpeed,
-                             types::Float fov);
+    MinecraftCamera(types::Float aspectRatio,
+                    types::FVec3 const &position,
+                    types::Float yaw,
+                    types::Float pitch,
+                    types::Float nearClippingDistance,
+                    types::Float farClippingDistance,
+                    types::Float rotationSpeed,
+                    types::Float fov);
 
     [[nodiscard]] types::FMat4 const &viewMatrix() const;
     [[nodiscard]] types::FMat4 const &projectionMatrix() const;

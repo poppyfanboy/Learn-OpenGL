@@ -15,6 +15,8 @@
 #include <pf_gl/EulerTransform3D.hpp>
 #include <pf_gl/Texture.hpp>
 #include <pf_gl/Window.hpp>
+#include <pf_gl/DrawingContext3D.hpp>
+#include <pf_gl/Material.hpp>
 
 namespace pf::gl
 {
@@ -27,18 +29,20 @@ public:
      */
     Model(std::shared_ptr<Window> window,
           std::filesystem::path const &path,
-          std::unique_ptr<Transform3D> &&transform = std::make_unique<EulerTransform3D>());
+          std::unique_ptr<Transform3D> &&transform = std::make_unique<EulerTransform3D>(),
+          Material const &material = {});
 
     /**
      * Create model from a collection of meshes.
      */
     Model(std::shared_ptr<Window> window,
           std::vector<std::shared_ptr<Mesh>> meshes,
-          std::unique_ptr<Transform3D> &&transform = std::make_unique<EulerTransform3D>());
+          std::unique_ptr<Transform3D> &&transform = std::make_unique<EulerTransform3D>(),
+          Material const &material = {});
 
     [[nodiscard]] Transform3D const &transform() const;
 
-    void render(Shader &shader, MinecraftCamera const &camera) const;
+    void render(Shader &shader, DrawingContext3D const &drawingContext) const;
 
     void transform(std::unique_ptr<Transform3D> &&transform);
 
@@ -47,6 +51,7 @@ private:
     std::vector<std::shared_ptr<Mesh>> _meshes;
     std::vector<std::shared_ptr<Texture>> _loadedTextures;
     std::unique_ptr<Transform3D> _transform;
+    Material _material;
 
     void loadModel(std::filesystem::path const &modelPath);
 

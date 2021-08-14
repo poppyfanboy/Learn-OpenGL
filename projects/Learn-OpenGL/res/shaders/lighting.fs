@@ -39,14 +39,20 @@ in vec2 TextureCoordinates;
 
 out vec4 FragmentColor;
 
-uniform PointLight u_light;
-#define POINT_LIGHTS_COUNT 4
-uniform PointLight u_pointLights[POINT_LIGHTS_COUNT];
-uniform DirectionalLight u_directionalLight;
-uniform SpotLight u_spotLight;
+#define MAX_POINT_LIGHTS_COUNT 16
+uniform PointLight u_pointLights[MAX_POINT_LIGHTS_COUNT];
+uniform int u_pointLightsCount;
 
-uniform sampler2D u_textureDiffuse0;
-uniform sampler2D u_textureSpecular0;
+uniform DirectionalLight u_directionalLight;
+uniform bool u_directionalLightEnabled;
+
+uniform SpotLight u_spotLight;
+uniform bool u_spotLightEnabled;
+
+#define MAX_DIFFUSE_TEXTURES_COUNT 1
+#define MAX_SPECULAR_TEXTURES_COUNT 1
+uniform sampler2D u_diffuseTexture[MAX_DIFFUSE_TEXTURES_COUNT];
+uniform sampler2D u_specularTexture[MAX_SPECULAR_TEXTURES_COUNT];
 uniform float u_shininess;
 
 vec3 calculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 directionToCamera);
@@ -68,20 +74,24 @@ void main()
     vec3 normal = normalize(Normal);
     vec3 directionToCamera = normalize(-FragmentPosition);
     vec3 resultColor = vec3(0.0);
-    resultColor += calculateDirectionalLight(u_directionalLight, normal, directionToCamera);
-    for (int i = 0; i < POINT_LIGHTS_COUNT; i++)
+
+    if (u_directionalLightEnabled)
+    {
+        resultColor += calculateDirectionalLight(u_directionalLight, normal, directionToCamera);
+    }
+
+    for (int i = 0; i < min(MAX_POINT_LIGHTS_COUNT, u_pointLightsCount); i++)
     {
         resultColor +=
             calculatePointLight(u_pointLights[i], normal, FragmentPosition, directionToCamera);
     }
-    resultColor += calculateSpotLight(u_spotLight, normal, FragmentPosition, directionToCamera);
-    FragmentColor = vec4(resultColor, 1.0);
 
-    // depth buffer visual test
-    // float near = 0.1;
-    // float far = 100.0;
-    // float depth = linearizeDepth(gl_FragCoord.z, near, far) / far;
-    // FragmentColor = vec4(vec3(depth), 1.0);
+    if (u_spotLightEnabled)
+    {
+        resultColor += calculateSpotLight(u_spotLight, normal, FragmentPosition, directionToCamera);
+    }
+
+    FragmentColor = vec4(resultColor, 1.0);
 }
 
 vec3 calculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 directionToCamera)
@@ -93,11 +103,11 @@ vec3 calculateDirectionalLight(DirectionalLight light, vec3 normal, vec3 directi
         pow(diffuseStrength, 1.0) *
         pow(max(dot(directionToCamera, reflectionDirection), 0.0), u_shininess);
 
-    vec3 ambient = light.ambient * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+    vec3 ambient = light.ambient * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 diffuse =
-        light.diffuse * diffuseStrength * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+        light.diffuse * diffuseStrength * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 specular =
-        light.specular * specularStrength * vec3(texture(u_textureSpecular0, TextureCoordinates));
+        light.specular * specularStrength * vec3(texture(u_specularTexture[0], TextureCoordinates));
 
     return ambient + diffuse + specular;
 }
@@ -117,11 +127,11 @@ vec3 calculatePointLight(PointLight light,
     float attenuation = 1.0 / (light.constantFactor + light.linearFactor * distanceToLight +
                                light.quadraticFactor * distanceToLight * distanceToLight);
 
-    vec3 ambient = light.ambient * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+    vec3 ambient = light.ambient * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 diffuse =
-        light.diffuse * diffuseStrength * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+        light.diffuse * diffuseStrength * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 specular =
-        light.specular * specularStrength * vec3(texture(u_textureSpecular0, TextureCoordinates));
+        light.specular * specularStrength * vec3(texture(u_specularTexture[0], TextureCoordinates));
 
     return attenuation * (ambient + diffuse + specular);
 }
@@ -141,13 +151,14 @@ vec3 calculateSpotLight(SpotLight light, vec3 normal, vec3 fragmentPosition, vec
     float dotLightDirection = dot(normalize(directionToLight), normalize(-light.direction));
     float intensity =
         clamp((dotLightDirection - light.cosOuterCutOff) / (light.cosCutOff - light.cosOuterCutOff),
-              0.0, 1.0);
+              0.0,
+              1.0);
 
-    vec3 ambient = light.ambient * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+    vec3 ambient = light.ambient * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 diffuse =
-        light.diffuse * diffuseStrength * vec3(texture(u_textureDiffuse0, TextureCoordinates));
+        light.diffuse * diffuseStrength * vec3(texture(u_diffuseTexture[0], TextureCoordinates));
     vec3 specular =
-        light.specular * specularStrength * vec3(texture(u_textureSpecular0, TextureCoordinates));
+        light.specular * specularStrength * vec3(texture(u_specularTexture[0], TextureCoordinates));
 
     return intensity * attenuation * (ambient + diffuse + specular);
 }
