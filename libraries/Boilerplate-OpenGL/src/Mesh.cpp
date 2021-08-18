@@ -93,7 +93,7 @@ void Mesh::render(Shader &shader,
             }
 
             types::FMat4 viewMatrix = drawingContext.camera->viewMatrix();
-            glUniformMatrix4fv(uniform.location(),
+            glUniformMatrix4fv(uniform.location,
                                1,
                                GL_FALSE,
                                types::dataPointer<types::FMat4, types::Float>(viewMatrix));
@@ -108,7 +108,7 @@ void Mesh::render(Shader &shader,
             }
 
             types::FMat4 projectionMatrix = drawingContext.camera->projectionMatrix();
-            glUniformMatrix4fv(uniform.location(),
+            glUniformMatrix4fv(uniform.location,
                                1,
                                GL_FALSE,
                                types::dataPointer<types::FMat4, types::Float>(projectionMatrix));
@@ -118,7 +118,7 @@ void Mesh::render(Shader &shader,
         case Uniform::Purpose::MODEL_MATRIX:
         {
             types::FMat4 modelMatrix = transform.localToWorldMatrix();
-            glUniformMatrix4fv(uniform.location(),
+            glUniformMatrix4fv(uniform.location,
                                1,
                                GL_FALSE,
                                types::dataPointer<types::FMat4, types::Float>(modelMatrix));
@@ -135,36 +135,20 @@ void Mesh::render(Shader &shader,
 
             glActiveTexture(GL_TEXTURE0 + textureIndex);
             _textures[textureIndex]->bind();
-            glUniform1i(uniform.location(), textureIndex);
+            glUniform1i(uniform.location, textureIndex);
             textureIndex++;
             break;
         }
 
-        case Uniform::Purpose::DIRECTIONAL_LIGHT:
+        case Uniform::Purpose::POINT_LIGHT_POSITION:
+        case Uniform::Purpose::POINT_LIGHT_AMBIENT:
+        case Uniform::Purpose::POINT_LIGHT_DIFFUSE:
+        case Uniform::Purpose::POINT_LIGHT_SPECULAR:
+        case Uniform::Purpose::POINT_LIGHT_CONSTANT_FACTOR:
+        case Uniform::Purpose::POINT_LIGHT_LINEAR_FACTOR:
+        case Uniform::Purpose::POINT_LIGHT_QUADRATIC_FACTOR:
         {
-            if (!drawingContext.directionalLight.has_value())
-            {
-                break;
-            }
 
-            DirectionalLight const &directionalLight = drawingContext.directionalLight.value();
-            // count is set to 1, because vec3 is treated like an array of vec3s of size 1
-            glUniform3fv(uniform.child("direction").location, 1, &directionalLight.direction[0]);
-            glUniform3fv(uniform.child("ambient").location, 1, &directionalLight.color.ambient[0]);
-            glUniform3fv(uniform.child("diffuse").location, 1, &directionalLight.color.diffuse[0]);
-            glUniform3fv(
-                uniform.child("specular").location, 1, &directionalLight.color.specular[0]);
-            break;
-        }
-
-        case Uniform::Purpose::DIRECTIONAL_LIGHT_ENABLED:
-        {
-            glUniform1i(uniform.location(), drawingContext.directionalLight.has_value() ? 1 : 0);
-            break;
-        }
-
-        case Uniform::Purpose::POINT_LIGHT:
-        {
             if (!drawingContext.pointLights.has_value() || uniform.arrayIndex < 0 ||
                 drawingContext.pointLights->size() <= uniform.arrayIndex)
             {
@@ -172,21 +156,38 @@ void Mesh::render(Shader &shader,
             }
 
             PointLight const &pointLight = drawingContext.pointLights.value()[uniform.arrayIndex];
-
-            types::FVec3 positionFromViewer = pointLight.position;
-            if (drawingContext.camera.has_value())
+            switch (uniform.purpose)
             {
-                positionFromViewer =
-                    drawingContext.camera->viewMatrix() * types::FVec4(positionFromViewer, 1.0F);
+            case Uniform::Purpose::POINT_LIGHT_POSITION:
+            {
+                types::FVec3 positionFromViewer = pointLight.position;
+                if (drawingContext.camera.has_value())
+                {
+                    positionFromViewer = drawingContext.camera->viewMatrix() *
+                                         types::FVec4(positionFromViewer, 1.0F);
+                }
+                glUniform3fv(uniform.location, 1, &positionFromViewer[0]);
+                break;
             }
-
-            glUniform3fv(uniform.child("position").location, 1, &positionFromViewer[0]);
-            glUniform3fv(uniform.child("ambient").location, 1, &pointLight.color.ambient[0]);
-            glUniform3fv(uniform.child("diffuse").location, 1, &pointLight.color.diffuse[0]);
-            glUniform3fv(uniform.child("specular").location, 1, &pointLight.color.specular[0]);
-            glUniform1f(uniform.child("constantFactor").location, pointLight.falloff.constant);
-            glUniform1f(uniform.child("linearFactor").location, pointLight.falloff.linear);
-            glUniform1f(uniform.child("quadraticFactor").location, pointLight.falloff.quadratic);
+            case Uniform::Purpose::POINT_LIGHT_AMBIENT:
+                glUniform3fv(uniform.location, 1, &pointLight.color.ambient[0]);
+                break;
+            case Uniform::Purpose::POINT_LIGHT_DIFFUSE:
+                glUniform3fv(uniform.location, 1, &pointLight.color.diffuse[0]);
+                break;
+            case Uniform::Purpose::POINT_LIGHT_SPECULAR:
+                glUniform3fv(uniform.location, 1, &pointLight.color.specular[0]);
+                break;
+            case Uniform::Purpose::POINT_LIGHT_CONSTANT_FACTOR:
+                glUniform1f(uniform.location, pointLight.falloff.constant);
+                break;
+            case Uniform::Purpose::POINT_LIGHT_LINEAR_FACTOR:
+                glUniform1f(uniform.location, pointLight.falloff.linear);
+                break;
+            case Uniform::Purpose::POINT_LIGHT_QUADRATIC_FACTOR:
+                glUniform1f(uniform.location, pointLight.falloff.quadratic);
+                break;
+            }
             break;
         }
 
@@ -194,16 +195,60 @@ void Mesh::render(Shader &shader,
         {
             if (!drawingContext.pointLights.has_value())
             {
-                glUniform1i(uniform.location(), 0);
+                glUniform1i(uniform.location, 0);
                 break;
             }
 
-            glUniform1i(uniform.location(),
+            glUniform1i(uniform.location,
                         gsl::narrow_cast<types::Int>(drawingContext.pointLights->size()));
             break;
         }
 
-        case Uniform::Purpose::SPOT_LIGHT:
+        case Uniform::Purpose::DIRECTIONAL_LIGHT_DIRECTION:
+        case Uniform::Purpose::DIRECTIONAL_LIGHT_AMBIENT:
+        case Uniform::Purpose::DIRECTIONAL_LIGHT_DIFFUSE:
+        case Uniform::Purpose::DIRECTIONAL_LIGHT_SPECULAR:
+        {
+            if (!drawingContext.directionalLight.has_value())
+            {
+                break;
+            }
+
+            DirectionalLight const &directionalLight = drawingContext.directionalLight.value();
+            switch (uniform.purpose)
+            {
+            case Uniform::Purpose::DIRECTIONAL_LIGHT_DIRECTION:
+                glUniform3fv(uniform.location, 1, &directionalLight.direction[0]);
+                break;
+            case Uniform::Purpose::DIRECTIONAL_LIGHT_AMBIENT:
+                glUniform3fv(uniform.location, 1, &directionalLight.color.ambient[0]);
+                break;
+            case Uniform::Purpose::DIRECTIONAL_LIGHT_DIFFUSE:
+                glUniform3fv(uniform.location, 1, &directionalLight.color.diffuse[0]);
+                break;
+            case Uniform::Purpose::DIRECTIONAL_LIGHT_SPECULAR:
+                glUniform3fv(uniform.location, 1, &directionalLight.color.specular[0]);
+                break;
+            }
+            break;
+        }
+
+        case Uniform::Purpose::DIRECTIONAL_LIGHT_ENABLED:
+        {
+            glUniform1i(uniform.location, drawingContext.directionalLight.has_value() ? 1 : 0);
+            break;
+        }
+
+        case Uniform::Purpose::SPOT_LIGHT_POSITION:
+        case Uniform::Purpose::SPOT_LIGHT_DIRECTION:
+        case Uniform::Purpose::SPOT_LIGHT_CUTOFF:
+        case Uniform::Purpose::SPOT_LIGHT_OUTER_CUTOFF:
+        case Uniform::Purpose::SPOT_LIGHT_AMBIENT:
+        case Uniform::Purpose::SPOT_LIGHT_DIFFUSE:
+        case Uniform::Purpose::SPOT_LIGHT_SPECULAR:
+        case Uniform::Purpose::SPOT_LIGHT_CONSTANT_FACTOR:
+        case Uniform::Purpose::SPOT_LIGHT_LINEAR_FACTOR:
+        case Uniform::Purpose::SPOT_LIGHT_QUADRATIC_FACTOR:
         {
             if (!drawingContext.spotLight.has_value())
             {
@@ -211,34 +256,57 @@ void Mesh::render(Shader &shader,
             }
 
             SpotLight const &spotLight = drawingContext.spotLight.value();
-            glUniform3fv(uniform.child("position").location, 1, &spotLight.position[0]);
-            glUniform3fv(uniform.child("direction").location, 1, &spotLight.direction[0]);
-            glUniform3fv(uniform.child("ambient").location, 1, &spotLight.color.ambient[0]);
-            glUniform3fv(uniform.child("diffuse").location, 1, &spotLight.color.diffuse[0]);
-            glUniform3fv(uniform.child("specular").location, 1, &spotLight.color.specular[0]);
-            glUniform1f(uniform.child("constantFactor").location, spotLight.falloff.constant);
-            glUniform1f(uniform.child("linearFactor").location, spotLight.falloff.linear);
-            glUniform1f(uniform.child("quadraticFactor").location, spotLight.falloff.quadratic);
-            glUniform1f(uniform.child("cosCutOff").location, spotLight.cutoff);
-            glUniform1f(uniform.child("cosOuterCutOff").location, spotLight.outerCutoff);
+            switch (uniform.purpose)
+            {
+            case Uniform::Purpose::SPOT_LIGHT_POSITION:
+                glUniform3fv(uniform.location, 1, &spotLight.position[0]);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_DIRECTION:
+                glUniform3fv(uniform.location, 1, &spotLight.direction[0]);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_CUTOFF:
+                glUniform1f(uniform.location, spotLight.cutoff);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_OUTER_CUTOFF:
+                glUniform1f(uniform.location, spotLight.outerCutoff);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_AMBIENT:
+                glUniform3fv(uniform.location, 1, &spotLight.color.ambient[0]);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_DIFFUSE:
+                glUniform3fv(uniform.location, 1, &spotLight.color.diffuse[0]);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_SPECULAR:
+                glUniform3fv(uniform.location, 1, &spotLight.color.specular[0]);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_CONSTANT_FACTOR:
+                glUniform1f(uniform.location, spotLight.falloff.constant);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_LINEAR_FACTOR:
+                glUniform1f(uniform.location, spotLight.falloff.linear);
+                break;
+            case Uniform::Purpose::SPOT_LIGHT_QUADRATIC_FACTOR:
+                glUniform1f(uniform.location, spotLight.falloff.quadratic);
+                break;
+            }
             break;
         }
 
         case Uniform::Purpose::SPOT_LIGHT_ENABLED:
         {
-            glUniform1i(uniform.location(), drawingContext.spotLight.has_value() ? 1 : 0);
+            glUniform1i(uniform.location, drawingContext.spotLight.has_value() ? 1 : 0);
             break;
         };
 
         case Uniform::Purpose::SHININESS:
         {
-            glUniform1f(uniform.location(), material.shininess);
+            glUniform1f(uniform.location, material.shininess);
             break;
         }
 
         case Uniform::Purpose::COLOR:
         {
-            glUniform3fv(uniform.location(), 1, &material.color[0]);
+            glUniform3fv(uniform.location, 1, &material.color[0]);
             break;
         }
 
@@ -249,7 +317,7 @@ void Mesh::render(Shader &shader,
                 break;
             }
 
-            glUniform1f(uniform.location(), drawingContext.elapsedTimeSeconds.value());
+            glUniform1f(uniform.location, drawingContext.elapsedTimeSeconds.value());
             break;
         }
 
@@ -260,7 +328,7 @@ void Mesh::render(Shader &shader,
                 break;
             }
 
-            glUniform2fv(uniform.location(), 1, &drawingContext.viewportSize.value()[0]);
+            glUniform2fv(uniform.location, 1, &drawingContext.viewportSize.value()[0]);
             break;
         }
         }

@@ -21,6 +21,7 @@
 #include <pf_gl/Window.hpp>
 #include <pf_gl/ValueTypes.hpp>
 #include <pf_utils/FileUtils.hpp>
+#include <pf_utils/Hashing.hpp>
 
 namespace pf::gl
 {
@@ -172,6 +173,34 @@ spp::sparse_hash_map<std::string, Uniform::Purpose> const Uniform::NAME_TO_PURPO
     {"u_color", COLOR},
 };
 
+spp::sparse_hash_map<std::pair<Uniform::Purpose, std::string>,
+                     Uniform::Purpose,
+                     pf::util::PairHash> const Uniform::CONTEXT_NAME_TO_PURPOSE{
+    {{SPOT_LIGHT, "position"}, SPOT_LIGHT_POSITION},
+    {{SPOT_LIGHT, "direction"}, SPOT_LIGHT_DIRECTION},
+    {{SPOT_LIGHT, "cosCutOff"}, SPOT_LIGHT_CUTOFF},
+    {{SPOT_LIGHT, "cosOuterCutOff"}, SPOT_LIGHT_OUTER_CUTOFF},
+    {{SPOT_LIGHT, "ambient"}, SPOT_LIGHT_AMBIENT},
+    {{SPOT_LIGHT, "diffuse"}, SPOT_LIGHT_DIFFUSE},
+    {{SPOT_LIGHT, "specular"}, SPOT_LIGHT_SPECULAR},
+    {{SPOT_LIGHT, "constantFactor"}, SPOT_LIGHT_CONSTANT_FACTOR},
+    {{SPOT_LIGHT, "linearFactor"}, SPOT_LIGHT_LINEAR_FACTOR},
+    {{SPOT_LIGHT, "quadraticFactor"}, SPOT_LIGHT_QUADRATIC_FACTOR},
+
+    {{DIRECTIONAL_LIGHT, "direction"}, DIRECTIONAL_LIGHT_DIRECTION},
+    {{DIRECTIONAL_LIGHT, "ambient"}, DIRECTIONAL_LIGHT_AMBIENT},
+    {{DIRECTIONAL_LIGHT, "diffuse"}, DIRECTIONAL_LIGHT_DIFFUSE},
+    {{DIRECTIONAL_LIGHT, "specular"}, DIRECTIONAL_LIGHT_SPECULAR},
+
+    {{POINT_LIGHT, "position"}, POINT_LIGHT_POSITION},
+    {{POINT_LIGHT, "ambient"}, POINT_LIGHT_AMBIENT},
+    {{POINT_LIGHT, "diffuse"}, POINT_LIGHT_DIFFUSE},
+    {{POINT_LIGHT, "specular"}, POINT_LIGHT_SPECULAR},
+    {{POINT_LIGHT, "constantFactor"}, POINT_LIGHT_CONSTANT_FACTOR},
+    {{POINT_LIGHT, "linearFactor"}, POINT_LIGHT_LINEAR_FACTOR},
+    {{POINT_LIGHT, "quadraticFactor"}, POINT_LIGHT_QUADRATIC_FACTOR},
+};
+
 std::regex const IS_ARRAY(R"(^(\w+)\[(\d+)\]$)");
 std::regex const SPLIT_BY_PERIOD(R"(\.)");
 
@@ -201,19 +230,19 @@ void Shader::retrieveUniforms()
             rawUniformName.begin(), rawUniformName.end(), SPLIT_BY_PERIOD, -1};
         std::string rawBaseName = periodSeparatedFirst->str().c_str();
 
-        // get the base name and an array index to find if this uniform has already been added
-
-        std::string uniformName;
-        std::string::size_type firstDotPosition = rawUniformName.find('.', 0);
-        if (firstDotPosition == std::string::npos)
+        // Extract the secondary name
+        std::string uniformSecondaryName;
+        std::string::size_type firstPeriodPosition = rawUniformName.find('.', 0);
+        if (firstPeriodPosition == std::string::npos)
         {
-            uniformName = rawUniformName.c_str();
+            uniformSecondaryName = rawUniformName.c_str();
         }
         else
         {
-            uniformName = &rawUniformName[firstDotPosition + 1];
+            uniformSecondaryName = &rawUniformName[firstPeriodPosition + 1];
         }
 
+        // Extract the base name and the array index
         std::string uniformBaseName;
         types::Int uniformArrayIndex = -1;
 
@@ -229,38 +258,29 @@ void Shader::retrieveUniforms()
             uniformArrayIndex = -1;
         }
 
-        auto foundUniform =
-            std::ranges::find_if(_uniforms,
-                                 [uniformBaseName, uniformArrayIndex](Uniform const &uniform) {
-                                     return uniform.arrayIndex == uniformArrayIndex &&
-                                            uniform.baseName == uniformBaseName;
-                                 });
+        // Derive the purpose of the uniform
+        Uniform::Purpose uniformPurpose = Uniform::GENERIC;
+        if (Uniform::NAME_TO_PURPOSE.find(uniformBaseName) != Uniform::NAME_TO_PURPOSE.end())
+        {
+            uniformPurpose = Uniform::NAME_TO_PURPOSE.at(uniformBaseName);
+        }
 
-        ScalarUniform singularUniform = {
+        auto contextedPurpose = Uniform::CONTEXT_NAME_TO_PURPOSE.find(
+            std::pair<Uniform::Purpose, std::string>{uniformPurpose, uniformSecondaryName});
+        if (contextedPurpose != Uniform::CONTEXT_NAME_TO_PURPOSE.end())
+        {
+            uniformPurpose = contextedPurpose->second;
+        }
+
+        Uniform uniform = {
             .fullName = rawUniformName.c_str(),
-            .name = uniformName,
+            .baseName = uniformBaseName,
+            .secondaryName = uniformSecondaryName,
+            .arrayIndex = uniformArrayIndex,
             .location = getUniformLocation(rawUniformName.c_str()),
+            .purpose = uniformPurpose,
         };
-        if (foundUniform != _uniforms.end())
-        {
-            foundUniform->children[singularUniform.name] = singularUniform;
-        }
-        else
-        {
-            Uniform::Purpose uniformPurpose = Uniform::GENERIC;
-            if (Uniform::NAME_TO_PURPOSE.find(uniformBaseName) != Uniform::NAME_TO_PURPOSE.end())
-            {
-                uniformPurpose = Uniform::NAME_TO_PURPOSE.at(uniformBaseName);
-            }
-
-            Uniform uniform = {
-                .baseName = uniformBaseName,
-                .purpose = uniformPurpose,
-                .arrayIndex = uniformArrayIndex,
-                .children = {{singularUniform.name, singularUniform}},
-            };
-            _uniforms.push_back(std::move(uniform));
-        }
+        _uniforms.push_back(std::move(uniform));
     }
 }
 
@@ -359,26 +379,6 @@ GLuint Shader::linkProgram(std::vector<types::UInt> const &shaderIds)
     }
 
     return programId;
-}
-
-[[nodiscard]] types::Int Uniform::location() const
-{
-    return children.begin()->second.location;
-}
-
-[[nodiscard]] std::string const &Uniform::name() const
-{
-    return children.begin()->second.fullName;
-}
-
-ScalarUniform const &Uniform::child(char const *name) const
-{
-    auto child = children.find(name);
-    if (child == children.end())
-    {
-        throw std::invalid_argument("Cannot find the singular uniform");
-    }
-    return child->second;
 }
 
 } // namespace pf::gl

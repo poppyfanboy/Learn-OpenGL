@@ -13,6 +13,7 @@
 
 #include <pf_gl/Window.hpp>
 #include <pf_gl/ValueTypes.hpp>
+#include <pf_utils/Hashing.hpp>
 
 namespace pf::gl
 {
@@ -75,16 +76,6 @@ private:
     void retrieveUniforms();
 };
 
-struct ScalarUniform
-{
-    std::string fullName;
-    std::string name;
-    types::Int location;
-};
-
-/**
- * For simplicity sake this uniform could be a struct, an array [of structs] or just a saclar value
- */
 struct Uniform
 {
     enum Purpose
@@ -98,29 +89,59 @@ struct Uniform
         SPECULAR_TEXTURE,
         SHININESS,
         COLOR,
+
         SPOT_LIGHT,
         SPOT_LIGHT_ENABLED,
+        SPOT_LIGHT_POSITION,
+        SPOT_LIGHT_DIRECTION,
+        SPOT_LIGHT_CUTOFF,
+        SPOT_LIGHT_OUTER_CUTOFF,
+        SPOT_LIGHT_AMBIENT,
+        SPOT_LIGHT_DIFFUSE,
+        SPOT_LIGHT_SPECULAR,
+        SPOT_LIGHT_CONSTANT_FACTOR,
+        SPOT_LIGHT_LINEAR_FACTOR,
+        SPOT_LIGHT_QUADRATIC_FACTOR,
+
         DIRECTIONAL_LIGHT,
         DIRECTIONAL_LIGHT_ENABLED,
+        DIRECTIONAL_LIGHT_DIRECTION,
+        DIRECTIONAL_LIGHT_AMBIENT,
+        DIRECTIONAL_LIGHT_DIFFUSE,
+        DIRECTIONAL_LIGHT_SPECULAR,
+
         POINT_LIGHT,
         POINT_LIGHTS_COUNT,
+        POINT_LIGHT_POSITION,
+        POINT_LIGHT_AMBIENT,
+        POINT_LIGHT_DIFFUSE,
+        POINT_LIGHT_SPECULAR,
+        POINT_LIGHT_CONSTANT_FACTOR,
+        POINT_LIGHT_LINEAR_FACTOR,
+        POINT_LIGHT_QUADRATIC_FACTOR,
+
         GENERIC,
     };
 
     static spp::sparse_hash_map<std::string, Purpose> const NAME_TO_PURPOSE;
+    static spp::sparse_hash_map<std::pair<Uniform::Purpose, std::string>,
+                                Uniform::Purpose,
+                                pf::util::PairHash> const CONTEXT_NAME_TO_PURPOSE;
 
+    std::string fullName;
+    // everything before the first period in the full name, also the array index is removed
     std::string baseName;
-    Purpose purpose = GENERIC;
-    // for array-uniform usage case
+    // everything after the first period in the full name
+    std::string secondaryName;
+
+    // So, if fullName = "first[2].second.third", then baseName = "first" and secondaryName =
+    // "second.third"
+
+    // In case the base name of the uniform name has an array index it is stored here
     types::Int arrayIndex = -1;
-    spp::sparse_hash_map<std::string, ScalarUniform> children;
 
-    // convenience methods for scalar uniform usage case
-    [[nodiscard]] types::Int location() const;
-    [[nodiscard]] std::string const &name() const;
-
-    // for struct-uniform usage case
-    ScalarUniform const &child(char const *name) const;
+    types::Int location;
+    Purpose purpose = GENERIC;
 };
 
 } // namespace pf::gl
